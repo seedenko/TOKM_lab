@@ -1,0 +1,48 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{AA490CF4-F010-4888-BBE6-4DC14F356CFF}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="lab1\project\RandomStars.cbproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="lab2\project\HygViewer.cbproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="RandomStars">
+        <MSBuild Projects="lab1\project\RandomStars.cbproj"/>
+    </Target>
+    <Target Name="RandomStars:Clean">
+        <MSBuild Projects="lab1\project\RandomStars.cbproj" Targets="Clean"/>
+    </Target>
+    <Target Name="RandomStars:Make">
+        <MSBuild Projects="lab1\project\RandomStars.cbproj" Targets="Make"/>
+    </Target>
+    <Target Name="HygViewer">
+        <MSBuild Projects="lab2\project\HygViewer.cbproj"/>
+    </Target>
+    <Target Name="HygViewer:Clean">
+        <MSBuild Projects="lab2\project\HygViewer.cbproj" Targets="Clean"/>
+    </Target>
+    <Target Name="HygViewer:Make">
+        <MSBuild Projects="lab2\project\HygViewer.cbproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="RandomStars;HygViewer"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="RandomStars:Clean;HygViewer:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="RandomStars:Make;HygViewer:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
