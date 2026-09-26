@@ -1,0 +1,36 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{A3D95E12-4B7C-4E28-89F1-0A5C8E72D623}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="выполнение\lab1\project\RandomStars.cbproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="RandomStars">
+        <MSBuild Projects="выполнение\lab1\project\RandomStars.cbproj"/>
+    </Target>
+    <Target Name="RandomStars:Clean">
+        <MSBuild Projects="выполнение\lab1\project\RandomStars.cbproj" Targets="Clean"/>
+    </Target>
+    <Target Name="RandomStars:Make">
+        <MSBuild Projects="выполнение\lab1\project\RandomStars.cbproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="RandomStars"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="RandomStars:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="RandomStars:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
