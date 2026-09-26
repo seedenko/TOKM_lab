@@ -1,0 +1,117 @@
+{
+  "meta": {
+    "lab_num": "3",
+    "topic": "Вычислительная геометрия пространственных сеток Делоне и диаграмм Вороного на базе генератора TetGen в среде C++Builder",
+    "goal": "Изучить теоретические и алгоритмические методы построения трехмерных полиэдральных сеток тетраэдров Делоне и пространственных ячеек Вороного с применением специализированного вычислительного ядра TetGen 1.5; адаптировать и скомпилировать консольную утилиту tetgen.exe в среде C++Builder 12; подготовить астрометрическую выборку звездного каталога окрестности Солнца; выполнить расчет топологических структур с флагами -fenv; осуществить экспорт сеток в реляционные базы данных SQLite; разработать и протестировать графическое приложение интерактивной 3D-визуализации TetraVor на базе библиотеки GLScene.",
+    "conclusion": "В ходе выполнения лабораторной работы №3 были детально исследованы алгоритмы трехмерной триангуляции и полиэдрального разбиения пространства. В среде Embarcadero RAD Studio C++Builder 12 успешно скомпилирована автономная консольная утилита tetgen.exe версии 1.5 без внешних динамических библиотек. На базе звездного каталога HYG сформирован массив астрономических координат stars_sidenko.node на 2000 узлов. Пакетным запуском утилиты с ключами -fenv сгенерирован полный набор топологических элементов: 12 814 тетраэдров, 25 750 граней, 14 935 ребер, а также 12 814 вершин и 2000 полиэдров Вороного за время расчета 0.172 с. Разработан скрипт конвертации выходных данных в нормализованные таблицы SQLite (stars_sidenko_Delaunay.sqlite и stars_sidenko_Voronoi.sqlite). Создано интерактивное VCL-приложение TetraVor с библиотекой GLScene, обеспечивающее визуализацию точечных моделей, каркасных сеток и полиэдров Вороного, а также табличный инспектор базы данных через TDBGrid. Поставленные цели работы достигнуты полностью.",
+    "github_repo": "https://github.com/seedenko/bsu-kommod-lab3"
+  },
+  "sections": [
+    {
+      "type": "text",
+      "content": "В лабораторной работе №3 решается задача дискретного пространственного моделирования геометрии взаимного расположения астрономических объектов на основе алгоритмов трехмерной триангуляции Делоне (3D Delaunay Tetrahedralization) и пространственного разбиения Вороного (3D Voronoi Diagram) по координатам каталога HYG Database 4.0."
+    },
+    {
+      "type": "figure",
+      "number": 1,
+      "title": "Интегрированная среда C++Builder 12 с проектом консольной утилиты генерации сеток tetgen.cbproj",
+      "path": "report_images/08_rad_studio_tetgen_project.png",
+      "width_cm": 15.5
+    },
+    {
+      "type": "text",
+      "content": "Для генерации сеток применяется алгоритмическое ядро TetGen 1.5 (разработка Института прикладного анализа и стохастики Вейерштрасса, Берлин, автор Hang Si). Проект адаптирован под компилятор Embarcadero C++Builder и скомпилирован в форме автономного консольного исполняемого модуля tetgen.exe, что обеспечивает прямой пакетный вызов генератора через стандартный командный интерпретатор Windows."
+    },
+    {
+      "type": "listing",
+      "number": 1,
+      "title": "Главный модуль tetgen.cpp — консольный интерфейс меш-генератора TetGen 1.5",
+      "code": "// tetgen.cpp - Консольная сборка меш-генератора в C++Builder\n#ifndef TETLIBRARY\nint _tmain(int argc, _TCHAR *argv[])\n{\n    tetgenbehavior b;\n    tetgenio in, addin, bgmin;\n\n    if (!b.parse_commandline(argc, argv)) {\n        terminatetetgen(NULL, 10);\n    }\n\n    // Считывание входных файлов узлов и граней\n    if (b.refine) {\n        in.load_node(b.infilename);\n    } else {\n        in.load_node(b.infilename);\n    }\n\n    // Вызов геометрического ядра триангуляции\n    tetrahedralize(&b, &in, &out);\n\n    // Сохранение результирующих сеток\n    out.save_nodes(b.outfilename);\n    out.save_elements(b.outfilename);\n    out.save_faces(b.outfilename);\n    out.save_edges(b.outfilename);\n    out.save_neighbors(b.outfilename);\n\n    return 0;\n}\n#endif"
+    },
+    {
+      "type": "text",
+      "content": "Для расчета топологии подготовлен массив звезд окрестности Солнца stars_sidenko.node объемом 2000 узлов. Пакетная обработка выполнена командой «tetgen.exe -fenv stars_sidenko.node». Использованные ключи задают: -f — расчет треугольных граней тетраэдров (.face); -e — экспорт ребер триангуляции (.edge); -n — матрица смежности тетраэдров (.neigh); -v — вычисление центров описанных сфер и формирование пространственных полиэдров Вороного (.v.node, .v.edge, .v.face, .v.cell)."
+    },
+    {
+      "type": "figure",
+      "number": 2,
+      "title": "Выполнение консольного расчета пространственной триангуляции утилитой tetgen.exe в командной строке Windows",
+      "path": "report_images/07_tetgen_cli_execution.png",
+      "width_cm": 15.0
+    },
+    {
+      "type": "text",
+      "content": "По результатам работы TetGen за 0.172 с для 2000 узлов построено 12 814 тетраэдров и 14 935 ребер триангуляции Делоне, а также 12 814 вершин двойственной диаграммы Вороного. Полученные структуры экспортированы в реляционную базу данных SQLite (файлы stars_sidenko_Delaunay.sqlite и stars_sidenko_Voronoi.sqlite) скриптом импорта."
+    },
+    {
+      "type": "listing",
+      "number": 2,
+      "title": "Скрипт импорта топологических структур TetGen в таблицы реляционной базы SQLite (Python)",
+      "code": "import sqlite3\n\n# Подключение к SQLite БД для триангуляции Делоне\nconn = sqlite3.connect('stars_sidenko_Delaunay.sqlite')\ncur = conn.cursor()\n\n# Таблица узлов (звёзд)\ncur.execute('CREATE TABLE dt_node (ID INTEGER, X REAL, Y REAL, Z REAL);')\nwith open('stars_sidenko.1.node', 'r') as f:\n    f.readline() # Пропуск заголовка\n    nodes = [(int(p[0]), float(p[1]), float(p[2]), float(p[3]))\n             for line in f if (p := line.strip().split()) and not p[0].startswith('#')]\ncur.executemany('INSERT INTO dt_node VALUES (?, ?, ?, ?)', nodes)\n\n# Таблица тетраэдров\ncur.execute('CREATE TABLE dt_ele (ID INTEGER, Node1 INTEGER, Node2 INTEGER, Node3 INTEGER, Node4 INTEGER);')\nwith open('stars_sidenko.1.ele', 'r') as f:\n    f.readline()\n    tets = [(int(p[0]), int(p[1]), int(p[2]), int(p[3]), int(p[4]))\n            for line in f if (p := line.strip().split()) and not p[0].startswith('#')]\ncur.executemany('INSERT INTO dt_ele VALUES (?, ?, ?, ?, ?)', tets)\n\nconn.commit()\nconn.close()"
+    },
+    {
+      "type": "text",
+      "content": "Для наглядной визуализации геометрических структур разработано интерактивное приложение TetraVor в C++Builder на базе пакета GLScene. Поддерживаются режимы: точечное облако (Points), каркасная сетка тетраэдров Делоне (Delaunay) и пространственная диаграмма полиэдров Вороного (Voronoi). На рисунке 3 продемонстрировано точечное облако звезд."
+    },
+    {
+      "type": "figure",
+      "number": 3,
+      "title": "Начальное точечное распределение узлов звездного каталога в рабочей области GLScene",
+      "path": "report_images/01_stars_points_mode.png",
+      "width_cm": 15.0
+    },
+    {
+      "type": "text",
+      "content": "В режиме Delaunay приложение загружает ребра триангуляции из таблицы dt_edge базы данных и формирует трехмерный каркас тетраэдров компонентом TGLLines. На рисунке 4 представлен полученный полигональный каркас."
+    },
+    {
+      "type": "figure",
+      "number": 4,
+      "title": "Каркасное 3D-отображение тетраэдральной сетки Делоне, построенной компонентом TGLLines",
+      "path": "report_images/02_delaunay_3d_mesh.png",
+      "width_cm": 15.0
+    },
+    {
+      "type": "text",
+      "content": "В режиме Voronoi визуализируются ребра многогранных ячеек Вороного из таблицы vd_edge, очерчивающие зоны пространственной близости вокруг каждой звезды (рисунок 5)."
+    },
+    {
+      "type": "figure",
+      "number": 5,
+      "title": "Визуализация пространственной полиэдральной диаграммы Вороного для звездного массива",
+      "path": "report_images/03_voronoi_3d_polyhedra.png",
+      "width_cm": 15.0
+    },
+    {
+      "type": "listing",
+      "number": 3,
+      "title": "Модуль fcNetScene.cpp — алгоритмы генерации графических узлов GLScene для Делоне и Вороного",
+      "code": "// Отрисовка рёбер триангуляции Делоне\nvoid __fastcall TFormNetScene::DrawDelaunay()\n{\n    GLPoints1->Visible = true;\n    GLLines1->Visible = true;\n    GLLines1->Nodes->Clear();\n\n    for (int i = 0; i < A_Delaunay.edgeCount; i++) {\n        int n1 = A_Delaunay.edge[i][0];\n        int n2 = A_Delaunay.edge[i][1];\n        GLLines1->AddNode(A_Delaunay.node[n1][0] * 0.05,\n                          A_Delaunay.node[n1][1] * 0.05,\n                          A_Delaunay.node[n1][2] * 0.05);\n        GLLines1->AddNode(A_Delaunay.node[n2][0] * 0.05,\n                          A_Delaunay.node[n2][1] * 0.05,\n                          A_Delaunay.node[n2][2] * 0.05);\n    }\n}\n\n// Отрисовка рёбер диаграммы Вороного\nvoid __fastcall TFormNetScene::DrawVoronoi()\n{\n    GLLines1->Visible = true;\n    GLLines1->Nodes->Clear();\n    for (int i = 0; i < A_Voronoi.edgeCount; i++) {\n        int n1 = A_Voronoi.edge[i][0];\n        int n2 = A_Voronoi.edge[i][1];\n        GLLines1->AddNode(A_Voronoi.node[n1][0] * 0.05,\n                          A_Voronoi.node[n1][1] * 0.05,\n                          A_Voronoi.node[n1][2] * 0.05);\n        GLLines1->AddNode(A_Voronoi.node[n2][0] * 0.05,\n                          A_Voronoi.node[n2][1] * 0.05,\n                          A_Voronoi.node[n2][2] * 0.05);\n    }\n}"
+    },
+    {
+      "type": "text",
+      "content": "Для структурированной табличной верификации базы данных в интерфейс интегрирован компонент TDBGrid (форма FormNetTable), подключенный к FireDAC. Таблицы координат узлов dt_node и ребер Вороного vd_edge представлены на рисунках 6 и 7."
+    },
+    {
+      "type": "figure",
+      "number": 6,
+      "title": "Просмотр координатных вершин триангуляции Делоне в табличном компоненте TDBGrid",
+      "path": "report_images/04_table_grid_delaunay.png",
+      "width_cm": 14.5
+    },
+    {
+      "type": "figure",
+      "number": 7,
+      "title": "Структура рёберных связей диаграммы Вороного в интерфейсе реляционной БД",
+      "path": "report_images/05_table_grid_voronoi.png",
+      "width_cm": 14.5
+    },
+    {
+      "type": "figure",
+      "number": 8,
+      "title": "Диалоговое окно с регистрационными данными студентки Сиденко В.Г.",
+      "path": "report_images/06_about_dialog.png",
+      "width_cm": 10.5
+    }
+  ]
+}

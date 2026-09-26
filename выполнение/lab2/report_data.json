@@ -1,0 +1,124 @@
+{
+  "meta": {
+    "lab_num": "2",
+    "topic": "Компьютерное моделирование кинематики и спектрального состава звездного населения каталога HYG Database средствами GLScene",
+    "goal": "Исследовать методы визуализации и обработки астрометрических массивов большой размерности (каталог звезд HYG Database v3.0 объемом ~120 000 объектов); изучить структуру декартовой гелиоцентрической системы координат окрестности Солнца; реализовать спектральную дифференциацию звездного населения по Гарвардской шкале OBAFGKM; построить непрерывную динамическую модель векового собственного движения звезд во времени; разработать интерфейсные компоненты табличной инспекции реляционных баз данных SQLite и текстового реестра Stars.csv.",
+    "conclusion": "В ходе выполнения лабораторной работы №2 была разработана интерактивная трехмерная визуальная система звездного каталога HYG Database v3.0 на базе библиотеки GLScene в среде Embarcadero RAD Studio C++Builder 13. Освоены и программно реализованы механизмы синтаксического разбора текстовых каталогов формата CSV с динамической компенсацией смещения полей при наличии локализованных названий. Реализовано отображение звезд точечными примитивами TGLPoints с цветовым кодированием температурных фотосферных характеристик по семи спектральным классам шкалы OBAFGKM (от горячих голубых O-звезд до холодных красных M-карликов) с возможностью раздельной фильтрации. Разработана кинематическая модель собственного движения звезд в обработчике TGLCadencer: непрерывное интегрирование пространственных скоростей vx, vy, vz во времени наглядно иллюстрирует вековую деформацию созвездий в масштабах сотен тысяч лет. Интегрированы модули табличной инспекции: форма TDBGrid для реляционных топологических сеток SQLite (триангуляция Делоне и диаграмма Вороного) и форма TListView для многоколоночной фильтрации и контекстного поиска по каталогу Stars.csv.",
+    "github_repo": "https://github.com/seedenko/bsu-kommod-lab2"
+  },
+  "sections": [
+    {
+      "type": "text",
+      "content": "В лабораторной работе №2 решается задача трехмерного астрометрического моделирования пространственного распределения и кинематической эволюции звездного населения ближнего космоса на основе каталога HYG Database v3.0 (компилирующего наблюдательные данные миссии Hipparcos, Йельского каталога ярких звезд и каталога Глизе)."
+    },
+    {
+      "type": "figure",
+      "number": 1,
+      "title": "Среда быстрой разработки Embarcadero RAD Studio 13 с проектом звездного симулятора HygViewer",
+      "path": "report_images/screenshot_rad_studio_window.png",
+      "width_cm": 15.5
+    },
+    {
+      "type": "text",
+      "content": "Базисом моделирования выступает прямоугольная декартова система координат XYZ с началом в положении Солнца (Sol, x = 0, y = 0, z = 0). Пространственные расстояния выражены в парсеках (1 пк ≈ 3.26 световых года). Векторы пространственного смещения звезд задаются проекциями собственной скорости vx, vy, vz в размерности парсек/год, что позволяет рассчитывать изменение координат во времени."
+    },
+    {
+      "type": "text",
+      "content": "Для каждого объекта каталога определяется его спектральный класс по Гарвардской шкале (O, B, A, F, G, K, M), отражающей температуру фотосферы: от высокотемпературных голубых гигантов класса O (T > 30 000 К) до холодных красных звезд класса M (2400–3700 К). Солнце принадлежит к желтым звездам класса G (T ≈ 5800 К). В алгоритме загрузки каталога Stars.csv выполняется сопоставление символьного кода спектра с векторным цветом RGB."
+    },
+    {
+      "type": "listing",
+      "number": 1,
+      "title": "Модуль fcHygViewer.cpp — синтаксический разбор каталога Stars.csv и гарвардская цветовая дифференциация",
+      "code": "// Загрузка звезд из каталога Stars.csv с нормализацией смещения полей\nvoid __fastcall TFormViewerHYG::LoadStarsCSV(String filename)\n{\n    m_stars.clear();\n    FILE* fp = fopen(AnsiString(filename).c_str(), \"r\");\n    if (!fp) return;\n\n    char line[1024];\n    if (!fgets(line, sizeof(line), fp)) {\n        fclose(fp);\n        return;\n    }\n\n    int offset = (strstr(line, \"proper_ru\") != NULL) ? 1 : 0;\n    char fBuf[64];\n\n    while (fgets(line, sizeof(line), fp)) {\n        StarCatalogRecord star;\n        memset(&star, 0, sizeof(star));\n\n        GetField(line, 0, fBuf, sizeof(fBuf));\n        star.id = atoi(fBuf);\n\n        GetField(line, 6, fBuf, sizeof(fBuf));\n        strncpy(star.proper, fBuf, sizeof(star.proper) - 1);\n\n        GetField(line, 13 + offset, fBuf, sizeof(fBuf));\n        star.mag = (float)atof(fBuf);\n\n        GetField(line, 14 + offset, fBuf, sizeof(fBuf));\n        star.absmag = (float)atof(fBuf);\n\n        GetField(line, 15 + offset, fBuf, sizeof(fBuf));\n        char sc = (fBuf[0] != '\\0') ? (char)toupper(fBuf[0]) : 'G';\n        star.spectClass = sc;\n\n        GetField(line, 17 + offset, fBuf, sizeof(fBuf));\n        star.x = (float)atof(fBuf);\n        GetField(line, 18 + offset, fBuf, sizeof(fBuf));\n        star.y = (float)atof(fBuf);\n        GetField(line, 19 + offset, fBuf, sizeof(fBuf));\n        star.z = (float)atof(fBuf);\n\n        star.curX = star.x; star.curY = star.y; star.curZ = star.z;\n\n        GetField(line, 20 + offset, fBuf, sizeof(fBuf));\n        star.vx = (float)atof(fBuf);\n        GetField(line, 21 + offset, fBuf, sizeof(fBuf));\n        star.vy = (float)atof(fBuf);\n        GetField(line, 22 + offset, fBuf, sizeof(fBuf));\n        star.vz = (float)atof(fBuf);\n\n        // Гарвардская шкала спектральных цветов OBAFGKM\n        switch (sc) {\n            case 'O': star.r = 0.0f;   star.g = 0.8f;  star.b = 1.0f;   break; // Blue\n            case 'B': star.r = 0.6f;   star.g = 0.85f; star.b = 1.0f;   break; // Sky blue\n            case 'A': star.r = 1.0f;   star.g = 1.0f;  star.b = 1.0f;   break; // White\n            case 'F': star.r = 1.0f;   star.g = 1.0f;  star.b = 0.7f;   break; // Yellow-white\n            case 'G': star.r = 1.0f;   star.g = 1.0f;  star.b = 0.15f;  break; // Yellow (Sol)\n            case 'K': star.r = 1.0f;   star.g = 0.55f; star.b = 0.1f;   break; // Orange\n            case 'M': star.r = 1.0f;   star.g = 0.2f;  star.b = 0.1f;   break; // Red\n            default:  star.r = 0.9f;   star.g = 0.9f;  star.b = 0.9f;   break;\n        }\n        m_stars.push_back(star);\n    }\n    fclose(fp);\n    m_simulatedYears = 0.0;\n}"
+    },
+    {
+      "type": "figure",
+      "number": 2,
+      "title": "Пространственное расположение звездного каталога HYG в гелиоцентрической декартовой системе координат",
+      "path": "report_images/01_hyg_stars_points.png",
+      "width_cm": 15.0
+    },
+    {
+      "type": "text",
+      "content": "Для селективного исследования пространственной структуры каталога в интерфейсе предусмотрен компонент TCheckListBox со списком семи спектральных классов. Пользователь может изолировать произвольные группы объектов. На рисунке 3 продемонстрирована выборка высокотемпературных гигантов B и O совместно с желтыми звездами класса G."
+    },
+    {
+      "type": "figure",
+      "number": 3,
+      "title": "Селективное отображение звезд классов B, G и O с помощью панели фильтрации",
+      "path": "report_images/02_hyg_spectral_classes.png",
+      "width_cm": 15.0
+    },
+    {
+      "type": "text",
+      "content": "Динамическая симуляция кинематики звезд реализуется численным интегрированием уравнений линейного движения r(t) = r₀ + v·Δt в обработчике TGLCadencer. Переменная m_timeScale задает ускорение симуляции (100 000 лет в секунду реального времени). На рисунке 4 показано состояние звездной системы после симуляции временного сдвига t = +330 218 лет."
+    },
+    {
+      "type": "listing",
+      "number": 2,
+      "title": "Модуль fcHygViewer.cpp — численное интегрирование векового собственного движения звезд в TGLCadencer",
+      "code": "// Моделирование динамики собственного движения звезд во времени\nvoid __fastcall TFormViewerHYG::GLCadencer1Progress(TObject *Sender, const double deltaTime, const double newTime)\n{\n    if (m_bDynamicsActive && !m_stars.empty()) {\n        double dt = deltaTime;\n        if (dt > 0.05) dt = 0.05; // ограничение шага для численной стабильности\n        double dtYears = dt * (double)m_timeScale; // m_timeScale = 100 000 лет/сек\n        m_simulatedYears += dtYears;\n\n        for (size_t i = 0; i < m_stars.size(); i++) {\n            m_stars[i].curX += m_stars[i].vx * (float)dtYears;\n            m_stars[i].curY += m_stars[i].vy * (float)dtYears;\n            m_stars[i].curZ += m_stars[i].vz * (float)dtYears;\n        }\n\n        if (Points1->Checked) {\n            DrawCatalogStars();\n        }\n\n        if (StatusBar1->Panels->Count > 2) {\n            StatusBar1->Panels->Items[2]->Text = \n                \"Dynamics: ON (+\" + IntToStr((int)m_simulatedYears) + \" yrs)\";\n        }\n    }\n    GLSceneViewer1->Invalidate();\n}"
+    },
+    {
+      "type": "figure",
+      "number": 4,
+      "title": "Эволюция пространственного положения звездного роя при симуляции течения космического времени (модельный сдвиг +330 тыс. лет)",
+      "path": "report_images/05_star_motion_dynamics.png",
+      "width_cm": 15.0
+    },
+    {
+      "type": "text",
+      "content": "Для пространственного геометрического анализа кластеризации звезд каталога HYG в проекте реализовано построение трехмерной триангуляции Делоне и двойственной ей диаграммы Вороного на основе предварительно вычисленных баз данных SQLite. Данные загружаются через библиотеку FireDAC (компоненты TFDConnection, TFDQuery). Триангуляция Делоне соединяет соседние звезды непересекающимися тетраэдрами, а диаграмма Вороного определяет области пространственного влияния каждой звезды. Результаты визуализации реберных сеток компонентом TGLLines показаны на рисунках 5 и 6."
+    },
+    {
+      "type": "figure",
+      "number": 5,
+      "title": "Трехмерная триангуляционная структура Делоне, соединяющая звездные узлы спектрального класса A",
+      "path": "report_images/03_delaunay_triangulation.png",
+      "width_cm": 15.0
+    },
+    {
+      "type": "figure",
+      "number": 6,
+      "title": "Пространственные многогранные ячейки Вороного, оконтуривающие области гравитационного влияния звезд класса A",
+      "path": "report_images/04_voronoi_diagram.png",
+      "width_cm": 15.0
+    },
+    {
+      "type": "text",
+      "content": "Для инспекции реляционных баз данных SQLite в проект включена табличная форма Form2 с компонентом TDBGrid, отображающим таблицы геометрических узлов dt_node и связующих топологических ребер dt_edge (рисунок 7)."
+    },
+    {
+      "type": "figure",
+      "number": 7,
+      "title": "Инспекция табличных данных вершин и топологических ребер SQLite через компонент TDBGrid",
+      "path": "report_images/06_table_grid_catalog.png",
+      "width_cm": 14.5
+    },
+    {
+      "type": "text",
+      "content": "Для глубокого атрибутивного анализа исходного текстового файла Stars.csv создана форма FormStarsCSV (TFormStarsCSV) на базе высокопроизводительного виртуального списка TListView (режим vsReport). Таблица включает 12 информационных колонок, выпадающий фильтр классов и быстрый контекстный поиск по собственному имени звезды."
+    },
+    {
+      "type": "listing",
+      "number": 3,
+      "title": "Модуль fcStarsCSV.cpp — наполнение и фильтрация строк TListView в реестре каталога Stars.csv",
+      "code": "// Обновление отображения записей каталога в TListView с фильтрацией\nvoid __fastcall TFormStarsCSV::PopulateListView()\n{\n    lvStars->Items->BeginUpdate();\n    lvStars->Items->Clear();\n\n    int filterClassIdx = cbClassFilter->ItemIndex;\n    char targetClass = 0;\n    switch (filterClassIdx) {\n        case 1: targetClass = 'O'; break;\n        case 2: targetClass = 'B'; break;\n        case 3: targetClass = 'A'; break;\n        case 4: targetClass = 'F'; break;\n        case 5: targetClass = 'G'; break;\n        case 6: targetClass = 'K'; break;\n        case 7: targetClass = 'M'; break;\n        default: targetClass = 0;   break;\n    }\n\n    AnsiString searchStr = AnsiString(edtSearch->Text).Trim().LowerCase();\n    bool hasSearch = (searchStr.Length() > 0);\n\n    const size_t maxDisplay = 2000;\n    size_t displayed = 0;\n\n    for (size_t i = 0; i < m_csvStars.size(); i++) {\n        const CSVStarItem& s = m_csvStars[i];\n\n        if (targetClass != 0 && s.spectClass != targetClass) continue;\n        if (hasSearch && s.proper.LowerCase().Pos(searchStr) == 0) continue;\n\n        TListItem* item = lvStars->Items->Add();\n        item->Caption = IntToStr(s.id);\n        item->SubItems->Add(s.proper.IsEmpty() ? AnsiString(\"-\") : s.proper);\n        item->SubItems->Add(s.spect.IsEmpty() ? AnsiString(\"-\") : s.spect);\n        item->SubItems->Add(AnsiString(s.spectClass));\n        item->SubItems->Add(FormatFloat(\"0.00\", s.mag));\n        item->SubItems->Add(FormatFloat(\"0.00\", s.absmag));\n        item->SubItems->Add(FormatFloat(\"0.0\", s.dist));\n        item->SubItems->Add(FormatFloat(\"0.000\", s.x));\n        item->SubItems->Add(FormatFloat(\"0.000\", s.y));\n        item->SubItems->Add(FormatFloat(\"0.000\", s.z));\n        item->SubItems->Add(FormatFloat(\"0.000000\", s.vx));\n        item->SubItems->Add(FormatFloat(\"0.000000\", s.vy));\n        item->SubItems->Add(FormatFloat(\"0.000000\", s.vz));\n\n        if (++displayed >= maxDisplay) break;\n    }\n    lvStars->Items->EndUpdate();\n    StatusBarCSV->Panels->Items[1]->Text = \n        \"Показано записей: \" + IntToStr((int)displayed) + \" из \" + IntToStr((int)m_csvStars.size());\n}"
+    },
+    {
+      "type": "figure",
+      "number": 8,
+      "title": "Окно детального табличного анализа и строкового поиска звездного реестра Stars.csv",
+      "path": "report_images/07_stars_csv_view.png",
+      "width_cm": 15.0
+    },
+    {
+      "type": "figure",
+      "number": 9,
+      "title": "Информационный экран с указанием студентки Сиденко В.Г. и академических атрибутов",
+      "path": "report_images/08_about_dialog.png",
+      "width_cm": 15.0
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+# Embarcadero C++Builder / RAD Studio intermediate & local files
+*.obj
+*.#*
+*.tds
+*.pch
+*.ilc
+*.ild
+*.ilf
+*.ils
+*.map
+*.dcu
+*.identcache
+*.stat
+*.local
+__history/
+__recovery/
+
+# OS and tools
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.bak
